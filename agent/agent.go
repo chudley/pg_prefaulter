@@ -61,6 +61,7 @@ type Agent struct {
 	fileHandleCache *fhcache.FileHandleCache
 	ioCache         *iocache.IOCache
 	walCache        *walcache.WALCache
+	walTranslations pg.WALTranslations
 }
 
 func New(cfg *config.Config) (a *Agent, err error) {
@@ -110,6 +111,7 @@ func New(cfg *config.Config) (a *Agent, err error) {
 		a.walCache = walCache
 	}
 
+	a.walTranslations = cfg.WALTranslations
 	return a, nil
 }
 

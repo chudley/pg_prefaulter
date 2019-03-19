@@ -167,7 +167,7 @@ func (a *Agent) getWALFilesDB() (pg.WALFiles, error) {
 		return nil, errors.Wrap(err, "unable to get WAL db files")
 	}
 
-	timelineID, oldLSNs, err := pg.QueryOldestLSNs(a.shutdownCtx, a.pool, a.walCache)
+	timelineID, oldLSNs, err := pg.QueryOldestLSNs(a.shutdownCtx, a.pool, a.walCache, a.walTranslations)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to query PostgreSQL checkpoint information")
 	}
@@ -263,6 +263,7 @@ func (a *Agent) queryLag(lagQuery _QueryLag) (units.Base2Bytes, error) {
 	var connectedState _DBConnectionState
 	defer func() { a.metrics.SetTextValue(metrics.DBConnectionStateName, connectedState.String()) }()
 
+	// XXX Does the lag query need some work?
 	var sql string
 	switch lagQuery {
 	case _QueryLagPrimary:

@@ -45,6 +45,7 @@ const (
 	KeyPGPollInterval = "postgresql.poll-interval"
 	KeyPGPort         = "postgresql.port"
 	KeyPGUser         = "postgresql.user"
+	KeyPGMajor        = "postgresql.major"
 
 	KeyWALReadahead = "postgresql.wal.readahead-bytes"
 	KeyWALThreads   = "postgresql.wal.threads"

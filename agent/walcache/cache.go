@@ -280,7 +280,7 @@ func (wc *WALCache) prefaultWALFile(walFile pg.WALFilename) (err error) {
 	var blocksMatched, linesMatched, linesScanned, walFilesProcessed, xlogdumpBytes uint64
 	var ioCacheHit, ioCacheMiss uint64
 
-	walFileAbs := path.Join(wc.cfg.PGDataPath, "pg_xlog", string(walFile))
+	walFileAbs := path.Join(wc.cfg.PGWalPath, string(walFile))
 	_, err = os.Stat(walFileAbs)
 	if err != nil {
 		// log.Debug().Err(err).Str("walfile", string(walFile)).Msg("stat")
