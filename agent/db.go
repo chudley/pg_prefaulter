@@ -263,30 +263,12 @@ func (a *Agent) queryLag(lagQuery _QueryLag) (units.Base2Bytes, error) {
 	var connectedState _DBConnectionState
 	defer func() { a.metrics.SetTextValue(metrics.DBConnectionStateName, connectedState.String()) }()
 
-	// XXX Does the lag query need some work?
 	var sql string
 	switch lagQuery {
 	case _QueryLagPrimary:
-		sql = `SELECT
-  state,
-  sync_state,
-  (pg_xlog_location_diff(sent_location, write_location))::FLOAT8 AS durability_lag_bytes,
-  (pg_xlog_location_diff(sent_location, flush_location))::FLOAT8 AS flush_lag_bytes,
-  (pg_xlog_location_diff(sent_location, replay_location))::FLOAT8 AS visibility_lag_bytes,
-  COALESCE(EXTRACT(EPOCH FROM '0'::INTERVAL), 0.0)::FLOAT8 AS visibility_lag_ms
-FROM
-  pg_catalog.pg_stat_replication
-ORDER BY visibility_lag_bytes
-LIMIT 1`
+		sql = a.walTranslations.Queries.ByteLagPrimary
 	case _QueryLagFollower:
-		sql = `SELECT
-  'receiving' AS state,
-  'applying' AS sync_state,
-  0.0::FLOAT8 AS durability_lag_bytes,
-  0.0::FLOAT8 AS flush_lag_bytes,
-  COALESCE((pg_xlog_location_diff(pg_last_xlog_receive_location(), pg_last_xlog_replay_location()))::FLOAT8, 0.0)::FLOAT8 AS visibility_lag_bytes,
-  COALESCE(EXTRACT(EPOCH FROM (NOW() - pg_last_xact_replay_timestamp())::INTERVAL), 0.0)::FLOAT8 AS visibility_lag_ms
-LIMIT 1`
+		sql = a.walTranslations.Queries.ByteLagFollower
 	default:
 		panic(fmt.Sprintf("unsupported query: %v", lagQuery))
 	}
