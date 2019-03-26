@@ -85,6 +85,20 @@ func New(cfg *config.Config) (a *Agent, err error) {
 	}
 
 	{
+		pgVersion, err := a.findPostgresVersion(cfg)
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to determine postgres version")
+		}
+
+		pgWalTranslations, err := pg.Translate(pgVersion)
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to translate wal interactions based on supplied pg major")
+		}
+
+		a.walTranslations = pgWalTranslations
+	}
+
+	{
 		fhCache, err := fhcache.New(a.shutdownCtx, cfg, a.metrics)
 		if err != nil {
 			return nil, errors.Wrap(err, "unable to initialize filehandle cache")
@@ -103,7 +117,7 @@ func New(cfg *config.Config) (a *Agent, err error) {
 	}
 
 	{
-		walCache, err := walcache.New(a, a.shutdownCtx, cfg, a.metrics, a.ioCache)
+		walCache, err := walcache.New(a, a.shutdownCtx, cfg, a.metrics, a.ioCache, a.walTranslations.Directory)
 		if err != nil {
 			return nil, errors.Wrap(err, "unable to initialize WAL cache")
 		}
@@ -111,7 +125,6 @@ func New(cfg *config.Config) (a *Agent, err error) {
 		a.walCache = walCache
 	}
 
-	a.walTranslations = cfg.WALTranslations
 	return a, nil
 }
 

@@ -21,6 +21,7 @@ import (
 	"math"
 	"strconv"
 	"time"
+	"path"
 
 	"github.com/alecthomas/units"
 	"github.com/jackc/pgx"
@@ -432,4 +433,28 @@ func (a *Agent) startDBStats() {
 				Msg("db-stats")
 		}
 	}
+}
+
+// findPostgresVersion takes a peek into the PG_VERSION file inside of the
+// currently configured data directory in order to determine the current version
+// of postgres that is running.
+func (a *Agent) findPostgresVersion(cfg *config.Config) (version string, err error) {
+	var pgVersion string = ""
+
+	buf, err := ioutil.ReadFile(path.Join(a.cfg.PGDataPath, "PG_VERSION"))
+	if err != nil {
+		return pgVersion, errors.Wrap(err, "unable to read PG_VERSION")
+	}
+
+	scanner := bufio.NewScanner(bytes.NewReader(buf))
+	for scanner.Scan() {
+		pgVersion = scanner.Text()
+		break
+	}
+
+	if err := scanner.Err(); err != nil {
+		return pgVersion, errors.Wrap(err, "unable to extract version from PG_VERSION")
+	}
+
+	return pgVersion, nil
 }

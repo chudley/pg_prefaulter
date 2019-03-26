@@ -51,7 +51,7 @@ type Agent struct {
 	LogFormat         LogFormat
 	RetryInit         bool
 	UseColors         bool
-	WALTranslations   pg.WALTranslations
+	PGDataPath        string
 }
 
 type FHCacheConfig struct {
@@ -79,7 +79,6 @@ type WALCacheConfig struct {
 	Mode           WALMode
 	ReadaheadBytes units.Base2Bytes
 	PGDataPath     string
-	PGWalPath      string
 	XLogDumpPath   string
 }
 
@@ -139,18 +138,13 @@ func NewDefault() (cfg *Config, err error) {
 		panic(fmt.Sprintf("unsupported log level: %q", logLevel))
 	}
 
-	var pgWalTranslations, translateErr = pg.Translate(viper.GetString(KeyPGMajor))
-	if translateErr != nil {
-		return nil, errors.Wrap(translateErr, "unable to translate wal interactions based on supplied pg major")
-	}
-
 	agentConfig := Agent{}
 	{
 		const postmasterPIDFilename = "postmaster.pid"
 		agentConfig.PostgreSQLPIDPath = path.Join(viper.GetString(KeyPGData), postmasterPIDFilename)
 		agentConfig.UseColors = viper.GetBool(KeyAgentUseColor)
 		agentConfig.RetryInit = viper.GetBool(KeyRetryDBInit)
-		agentConfig.WALTranslations = pgWalTranslations
+		agentConfig.PGDataPath = viper.GetString(KeyPGData)
 		agentConfig.LogFormat, err = LogLevelParse(viper.GetString(KeyAgentLogFormat))
 		if err != nil {
 			return nil, errors.Wrap(err, "unable to parse the log format")
@@ -243,7 +237,6 @@ func NewDefault() (cfg *Config, err error) {
 		}
 
 		walConfig.XLogDumpPath = viper.GetString(KeyXLogPath)
-		walConfig.PGWalPath = path.Join(walConfig.PGDataPath, pgWalTranslations.Directory)
 	}
 
 	return &Config{

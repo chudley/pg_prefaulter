@@ -74,6 +74,7 @@ type WALCache struct {
 	shutdownCtx       context.Context
 	wg                sync.WaitGroup
 	cfg               *config.WALCacheConfig
+	walDirectory      string
 
 	purgeLock sync.Mutex
 	c         gcache.Cache
@@ -94,7 +95,7 @@ var (
 
 func New(pgConnCtxAcquirer ConnContextAcquirer, shutdownCtx context.Context,
 	cfg *config.Config, circMetrics *cgm.CirconusMetrics,
-	ioCache *iocache.IOCache) (*WALCache, error) {
+	ioCache *iocache.IOCache, walDirectory string) (*WALCache, error) {
 	walWorkers := pg.NumOldLSNs * int(math.Ceil(float64(cfg.ReadaheadBytes)/float64(pg.WALSegmentSize)))
 
 	wc := &WALCache{
@@ -102,6 +103,7 @@ func New(pgConnCtxAcquirer ConnContextAcquirer, shutdownCtx context.Context,
 		shutdownCtx:       shutdownCtx,
 		metrics:           circMetrics,
 		cfg:               &cfg.WALCacheConfig,
+		walDirectory:      walDirectory,
 
 		inFlightWALFiles: make(map[pg.WALFilename]struct{}, walWorkers),
 		ioCache:          ioCache,
@@ -280,7 +282,7 @@ func (wc *WALCache) prefaultWALFile(walFile pg.WALFilename) (err error) {
 	var blocksMatched, linesMatched, linesScanned, walFilesProcessed, xlogdumpBytes uint64
 	var ioCacheHit, ioCacheMiss uint64
 
-	walFileAbs := path.Join(wc.cfg.PGWalPath, string(walFile))
+	walFileAbs := path.Join(wc.cfg.PGDataPath, wc.walDirectory, string(walFile))
 	_, err = os.Stat(walFileAbs)
 	if err != nil {
 		// log.Debug().Err(err).Str("walfile", string(walFile)).Msg("stat")
