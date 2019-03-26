@@ -43,7 +43,6 @@ type Config struct {
 	FHCacheConfig
 	IOCacheConfig
 	WALCacheConfig
-	PGMajor string
 }
 
 type Agent struct {

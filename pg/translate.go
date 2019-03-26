@@ -8,18 +8,17 @@ import (
 )
 
 type WALTranslations struct {
-	Major        string
-	Directory    string
-	Lsn          string
-	Wal          string
-	WalDump      string
-	Queries      WALQueries
+	Major      string
+	Directory  string
+	Lsn        string
+	Wal        string
+	Queries    WALQueries
 }
 
 type WALQueries struct {
-	Lag             string
-	ByteLagPrimary  string
-	ByteLagFollower string
+	OldestLSNs   string
+	LagPrimary   string
+	LagFollower  string
 }
 
 func Translate(pgMajor string) (WALTranslations, error) {
@@ -37,7 +36,7 @@ func Translate(pgMajor string) (WALTranslations, error) {
 	}
 
 
-	var byteLagPrimaryFmt = `SELECT
+	var lagPrimaryFmt = `SELECT
 	    state,
 	    sync_state,
 	    (pg_%[2]s_%[1]s_diff(sent_%[1]s, write_%[1]s))::FLOAT8 AS durability_lag_bytes,
@@ -49,7 +48,7 @@ func Translate(pgMajor string) (WALTranslations, error) {
 	    ORDER BY visibility_lag_bytes
 	    LIMIT 1`
 
-	var byteLagFollowerFmt = `SELECT
+	var lagFollowerFmt = `SELECT
 	    'receiving' AS state,
 	    'applying' AS sync_state,
 	    0.0::FLOAT8 AS durability_lag_bytes,
@@ -66,18 +65,16 @@ func Translate(pgMajor string) (WALTranslations, error) {
 			translations.Directory = "pg_xlog"
 			translations.Lsn = "location"
 			translations.Wal = "xlog"
-			translations.WalDump = "pg_xlogdump"
-			queries.Lag = "SELECT timeline_id, redo_location, pg_last_xlog_replay_location() FROM pg_control_checkpoint()"
+			queries.OldestLSNs = "SELECT timeline_id, redo_location, pg_last_xlog_replay_location() FROM pg_control_checkpoint()"
 		} else {
 			translations.Directory = "pg_wal"
 			translations.Lsn = "lsn"
 			translations.Wal = "wal"
-			translations.WalDump = "pg_waldump"
-			queries.Lag = "SELECT timeline_id, redo_lsn, pg_last_wal_receive_lsn() FROM pg_control_checkpoint()"
+			queries.OldestLSNs = "SELECT timeline_id, redo_lsn, pg_last_wal_receive_lsn() FROM pg_control_checkpoint()"
 		}
 
-		queries.ByteLagPrimary = fmt.Sprintf(byteLagPrimaryFmt, translations.Lsn, translations.Wal)
-		queries.ByteLagFollower = fmt.Sprintf(byteLagFollowerFmt, translations.Lsn, translations.Wal)
+		queries.LagPrimary = fmt.Sprintf(lagPrimaryFmt, translations.Lsn, translations.Wal)
+		queries.LagFollower = fmt.Sprintf(lagFollowerFmt, translations.Lsn, translations.Wal)
 
 		translations.Queries = queries
 	}

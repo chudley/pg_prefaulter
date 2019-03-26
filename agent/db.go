@@ -267,9 +267,9 @@ func (a *Agent) queryLag(lagQuery _QueryLag) (units.Base2Bytes, error) {
 	var sql string
 	switch lagQuery {
 	case _QueryLagPrimary:
-		sql = a.walTranslations.Queries.ByteLagPrimary
+		sql = a.walTranslations.Queries.LagPrimary
 	case _QueryLagFollower:
-		sql = a.walTranslations.Queries.ByteLagFollower
+		sql = a.walTranslations.Queries.LagFollower
 	default:
 		panic(fmt.Sprintf("unsupported query: %v", lagQuery))
 	}

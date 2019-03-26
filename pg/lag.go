@@ -44,7 +44,7 @@ func QueryOldestLSNs(ctx context.Context, pool *pgx.ConnPool, inProcess WALStatu
 
 	// NOTE(seanc@): keep the number of LSN values in this query with
 	// the NumOldLSNs constant.
-	rows, err := pool.QueryEx(ctx, walTranslations.Queries.Lag, nil)
+	rows, err := pool.QueryEx(ctx, walTranslations.Queries.OldestLSNs, nil)
 	if err != nil {
 		return errTimelineID, nil, err
 	}

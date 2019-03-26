@@ -198,17 +198,4 @@ func init() {
 		viper.SetDefault(key, defaultValue)
 	}
 
-	{
-		const (
-			key       = config.KeyPGMajor
-			longName  = "pg-version"
-			shortName = "y"
-			defaultValue = "9.6"
-			description  = "Version of postgres"
-		)
-
-		runCmd.Flags().StringP(longName, shortName, defaultValue, description)
-		viper.BindPFlag(key, runCmd.Flags().Lookup(longName))
-		viper.SetDefault(key, defaultValue)
-	}
 }
