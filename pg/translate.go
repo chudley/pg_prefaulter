@@ -1,10 +1,23 @@
+// Copyright © 2019 Joyent, Inc.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package pg
 
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
 )
 
 type WALTranslations struct {
@@ -21,20 +34,13 @@ type WALQueries struct {
 	LagFollower  string
 }
 
-func Translate(pgMajor string) (WALTranslations, error) {
-	log.Debug().Str("pg-major", pgMajor).Msg("translating wal interactions based on supplied postgres major")
-
+func Translate(pgVersion string) (WALTranslations, error) {
 	var translations WALTranslations
 
-	var parsedMajor, err = strconv.ParseFloat(pgMajor, 64)
+	var pgMajor, err = parsePgVersion(pgVersion)
 	if err != nil {
-		return translations, errors.Wrap(err, "failed to parse major")
+		return translations, errors.Wrap(err, "failed to parse pg version")
 	}
-
-	if parsedMajor < 9.6 {
-		return translations, fmt.Errorf("pg majors < 9.6 are unsupported (supplied was %s)", pgMajor)
-	}
-
 
 	var lagPrimaryFmt = `SELECT
 	    state,
@@ -59,14 +65,15 @@ func Translate(pgMajor string) (WALTranslations, error) {
 
 	translations = WALTranslations{}
 	{
-		translations.Major = pgMajor
 		queries := WALQueries{}
-		if parsedMajor < 10 {
+		if pgMajor < 10 {
+			translations.Major = fmt.Sprintf("%.1f", pgMajor)
 			translations.Directory = "pg_xlog"
 			translations.Lsn = "location"
 			translations.Wal = "xlog"
 			queries.OldestLSNs = "SELECT timeline_id, redo_location, pg_last_xlog_replay_location() FROM pg_control_checkpoint()"
 		} else {
+			translations.Major = fmt.Sprintf("%.0f", pgMajor)
 			translations.Directory = "pg_wal"
 			translations.Lsn = "lsn"
 			translations.Wal = "wal"
@@ -79,12 +86,26 @@ func Translate(pgMajor string) (WALTranslations, error) {
 		translations.Queries = queries
 	}
 
-	log.Debug().
-		Str("major", translations.Major).
-		Str("directory", translations.Directory).
-		Str("lsn", translations.Lsn).
-		Str("wal", translations.Wal).
-		Msg("wal translations ready")
-
 	return translations, nil
+}
+
+func parsePgVersion(pgVersion string) (float64, error) {
+	var major = 0.0
+
+	var elements = strings.Split(pgVersion, ".")
+	var parsedMajor, err = strconv.ParseFloat(elements[0], 64)
+	if err != nil {
+		return major, err
+	}
+
+	if parsedMajor >= 10 {
+		major = parsedMajor
+	} else {
+		major, err = strconv.ParseFloat(strings.Join(elements[:2], "."), 64)
+		if err != nil {
+			return major, err
+		}
+	}
+
+	return major, nil
 }
