@@ -92,7 +92,7 @@ func New(cfg *config.Config) (a *Agent, err error) {
 
 		pgWalTranslations, err := pg.Translate(pgVersion)
 		if err != nil {
-			return nil, errors.Wrap(err, "unable to translate wal interactions based on supplied pg major")
+			return nil, errors.Wrap(err, "unable to translate wal interactions based on supplied pg version")
 		}
 
 		a.walTranslations = pgWalTranslations
