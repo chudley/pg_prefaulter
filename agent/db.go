@@ -21,7 +21,6 @@ import (
 	"math"
 	"strconv"
 	"time"
-	"path"
 
 	"github.com/alecthomas/units"
 	"github.com/jackc/pgx"
@@ -236,8 +235,21 @@ func (a *Agent) initDBPool(cfg *config.Config) (err error) {
 		if err := conn.QueryRowEx(a.shutdownCtx, sql, nil).Scan(&version); err != nil {
 			return errors.Wrap(err, "unable to query DB version")
 		}
-		log.Debug().Uint32("backend-pid", conn.PID()).Str("version", version).Msg("established DB connection")
+
+		var server_version_num uint32
+		sql_num := `SELECT current_setting('server_version_num')::integer`
+		if err := conn.QueryRowEx(a.shutdownCtx, sql_num, nil).Scan(&server_version_num); err != nil {
+			return errors.Wrap(err, "unable to query DB version number")
+		}
+
+		log.Debug().
+			Uint32("backend-pid", conn.PID()).
+			Str("version", version).
+			Uint32("server-version-num", server_version_num).
+			Msg("established DB connection")
+
 		a.metrics.SetTextValue(metrics.DBVersionPG, version)
+		a.pgVersion = server_version_num
 
 		return nil
 	}
@@ -433,28 +445,4 @@ func (a *Agent) startDBStats() {
 				Msg("db-stats")
 		}
 	}
-}
-
-// findPostgresVersion takes a peek into the PG_VERSION file inside of the
-// currently configured data directory in order to determine the current version
-// of postgres that is running.
-func (a *Agent) findPostgresVersion(cfg *config.Config) (version string, err error) {
-	var pgVersion string = ""
-
-	buf, err := ioutil.ReadFile(path.Join(a.cfg.PGDataPath, "PG_VERSION"))
-	if err != nil {
-		return pgVersion, errors.Wrap(err, "unable to read PG_VERSION")
-	}
-
-	scanner := bufio.NewScanner(bytes.NewReader(buf))
-	for scanner.Scan() {
-		pgVersion = scanner.Text()
-		break
-	}
-
-	if err := scanner.Err(); err != nil {
-		return pgVersion, errors.Wrap(err, "unable to extract version from PG_VERSION")
-	}
-
-	return pgVersion, nil
 }

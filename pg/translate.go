@@ -15,13 +15,10 @@ package pg
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
-	"github.com/pkg/errors"
 )
 
 type WALTranslations struct {
-	Major      string
+	Version    uint32
 	Directory  string
 	Lsn        string
 	Wal        string
@@ -34,13 +31,9 @@ type WALQueries struct {
 	LagFollower  string
 }
 
-func Translate(pgVersion string) (WALTranslations, error) {
+func Translate(pgVersion uint32) (WALTranslations) {
 	var translations WALTranslations
-
-	var pgMajor, err = parsePgVersion(pgVersion)
-	if err != nil {
-		return translations, errors.Wrap(err, "failed to parse pg version")
-	}
+	var translateHorizon uint32 = 100000 // PostgreSQL version 10
 
 	var lagPrimaryFmt = `SELECT
 	    state,
@@ -66,14 +59,14 @@ func Translate(pgVersion string) (WALTranslations, error) {
 	translations = WALTranslations{}
 	{
 		queries := WALQueries{}
-		if pgMajor < 10 {
-			translations.Major = fmt.Sprintf("%.1f", pgMajor)
+		if pgVersion < translateHorizon {
+			translations.Version = pgVersion
 			translations.Directory = "pg_xlog"
 			translations.Lsn = "location"
 			translations.Wal = "xlog"
 			queries.OldestLSNs = "SELECT timeline_id, redo_location, pg_last_xlog_replay_location() FROM pg_control_checkpoint()"
 		} else {
-			translations.Major = fmt.Sprintf("%.0f", pgMajor)
+			translations.Version = pgVersion
 			translations.Directory = "pg_wal"
 			translations.Lsn = "lsn"
 			translations.Wal = "wal"
@@ -86,26 +79,5 @@ func Translate(pgVersion string) (WALTranslations, error) {
 		translations.Queries = queries
 	}
 
-	return translations, nil
-}
-
-func parsePgVersion(pgVersion string) (float64, error) {
-	var major = 0.0
-
-	var elements = strings.Split(pgVersion, ".")
-	var parsedMajor, err = strconv.ParseFloat(elements[0], 64)
-	if err != nil {
-		return major, err
-	}
-
-	if parsedMajor >= 10 {
-		major = parsedMajor
-	} else {
-		major, err = strconv.ParseFloat(strings.Join(elements[:2], "."), 64)
-		if err != nil {
-			return major, err
-		}
-	}
-
-	return major, nil
+	return translations
 }
