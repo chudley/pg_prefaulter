@@ -1,4 +1,4 @@
-// Copyright © 2019 Joyent, Inc.
+// Copyright © 2017 Joyent, Inc.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -197,5 +197,4 @@ func init() {
 		viper.BindPFlag(key, runCmd.Flags().Lookup(longName))
 		viper.SetDefault(key, defaultValue)
 	}
-
 }
