@@ -101,8 +101,8 @@ GOPATH?=$(shell go env GOPATH)
 PGDATA_PRIMARY?=$(GOPATH)/src/github.com/joyent/pg_prefaulter/.pgdata_primary
 PGDATA_FOLLOWER?=$(GOPATH)/src/github.com/joyent/pg_prefaulter/.pgdata_follower
 
-PGPRIMARYPORT=5442
-PGFOLLOWPORT=5452
+PGPRIMARYPORT?=5442
+PGFOLLOWPORT?=5452
 
 .PHONY: check-pg_controldata
 check-pg_controldata::
