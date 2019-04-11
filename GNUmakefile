@@ -87,6 +87,11 @@ PG_BASEBACKUP?=$(wildcard /usr/local/bin/pg_basebackup /opt/local/lib/postgresql
 INITDB?=$(wildcard /usr/local/bin/initdb /opt/local/lib/postgresql$(PGVERSION)/bin/initdb /opt/local/bin/initdb)
 PG_CONTROLDATA?=$(wildcard /usr/local/bin/pg_controldata /opt/local/lib/postgresql$(PGVERSION)/bin/pg_controldata /opt/local/bin/pg_controldata)
 PWFILE?=.pwfile
+ifeq ($(PGVERSION),96)
+	WAL=xlog
+else
+	WAL=wal
+endif
 
 PGBENCH?=$(wildcard /usr/local/bin/pgbench /opt/local/lib/postgresql$(PGVERSION)/bin/pgbench /opt/local/bin/pgbench)
 PGBENCH_ARGS?=-j 64 -P 60 -r -T 900 --no-vacuum --protocol=prepared
@@ -96,8 +101,8 @@ GOPATH?=$(shell go env GOPATH)
 PGDATA_PRIMARY?=$(GOPATH)/src/github.com/joyent/pg_prefaulter/.pgdata_primary
 PGDATA_FOLLOWER?=$(GOPATH)/src/github.com/joyent/pg_prefaulter/.pgdata_follower
 
-PGPRIMARYPORT=5453
-PGFOLLOWPORT=5433
+PGPRIMARYPORT=5442
+PGFOLLOWPORT=5452
 
 .PHONY: check-pg_controldata
 check-pg_controldata::
@@ -157,7 +162,7 @@ initdb-primary:: $(PWFILE) check-initdb ## 30 initdb(1) a primary database
 
 .PHONY: initdb-follower
 initdb-follower:: $(PWFILE) check-pg_basebackup ## 40 initdb(1) a follower database
-	env PGPASSWORD="`cat \"$(PWFILE)\"`" $(PG_BASEBACKUP) -R -h localhost -p $(PGPRIMARYPORT) -D $(PGDATA_FOLLOWER) -P -U postgres --wal-method=stream
+	env PGPASSWORD="`cat \"$(PWFILE)\"`" $(PG_BASEBACKUP) -R -h localhost -p $(PGPRIMARYPORT) -D $(PGDATA_FOLLOWER) -P -U postgres --$(WAL)-method=stream
 	mkdir -p $(PGDATA_FOLLOWER)/archive || true
 
 .PHONY: startdb-primary
