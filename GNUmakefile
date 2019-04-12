@@ -15,8 +15,8 @@ build:: $(PG_PREFAULTER) ## 10 Build pg_prefaulter binary
 pg_prefaulter::
 	go build -ldflags "-X main.commit=`git describe --tags --always` -X main.date=`date +%Y-%m-%d_%H:%d`" -o $@ main.go
 
-.PHONY: check
-check:: ## 10 Run go test
+.PHONY: test
+test:: ## 10 Run go test
 	go test -v ./...
 
 cover:: coverage_report ## 10 Generate a coverage report
@@ -87,11 +87,6 @@ PG_BASEBACKUP?=$(wildcard /usr/local/bin/pg_basebackup /opt/local/lib/postgresql
 INITDB?=$(wildcard /usr/local/bin/initdb /opt/local/lib/postgresql$(PGVERSION)/bin/initdb /opt/local/bin/initdb)
 PG_CONTROLDATA?=$(wildcard /usr/local/bin/pg_controldata /opt/local/lib/postgresql$(PGVERSION)/bin/pg_controldata /opt/local/bin/pg_controldata)
 PWFILE?=.pwfile
-ifeq ($(PGVERSION),96)
-	WAL=xlog
-else
-	WAL=wal
-endif
 
 PGBENCH?=$(wildcard /usr/local/bin/pgbench /opt/local/lib/postgresql$(PGVERSION)/bin/pgbench /opt/local/bin/pgbench)
 PGBENCH_ARGS?=-j 64 -P 60 -r -T 900 --no-vacuum --protocol=prepared
@@ -162,7 +157,7 @@ initdb-primary:: $(PWFILE) check-initdb ## 30 initdb(1) a primary database
 
 .PHONY: initdb-follower
 initdb-follower:: $(PWFILE) check-pg_basebackup ## 40 initdb(1) a follower database
-	env PGPASSWORD="`cat \"$(PWFILE)\"`" $(PG_BASEBACKUP) -R -h localhost -p $(PGPRIMARYPORT) -D $(PGDATA_FOLLOWER) -P -U postgres --$(WAL)-method=stream
+	env PGPASSWORD="`cat \"$(PWFILE)\"`" $(PG_BASEBACKUP) -R -h localhost -p $(PGPRIMARYPORT) -D $(PGDATA_FOLLOWER) -P -U postgres -X stream
 	mkdir -p $(PGDATA_FOLLOWER)/archive || true
 
 .PHONY: startdb-primary
@@ -276,7 +271,7 @@ cleandb-follower:: ## 40 Clean follower database
 freshdb-follower:: cleandb-follower initdb-follower startdb-follower ## 40 Drops and recreates the follower database
 
 .PHONY: testdb
-testdb:: check resetdb ## 50 Run database tests
+testdb:: test resetdb ## 50 Run database tests
 
 .PHONY: pgbench-init
 pgbench-init:: check-pgbench ## 60 Initialize pgbench

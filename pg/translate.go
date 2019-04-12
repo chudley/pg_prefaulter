@@ -57,27 +57,25 @@ func Translate(pgVersion uint32) (WALTranslations) {
 	    LIMIT 1`
 
 	translations = WALTranslations{}
-	{
-		queries := WALQueries{}
-		if pgVersion < translateHorizon {
-			translations.Version = pgVersion
-			translations.Directory = "pg_xlog"
-			translations.Lsn = "location"
-			translations.Wal = "xlog"
-			queries.OldestLSNs = "SELECT timeline_id, redo_location, pg_last_xlog_replay_location() FROM pg_control_checkpoint()"
-		} else {
-			translations.Version = pgVersion
-			translations.Directory = "pg_wal"
-			translations.Lsn = "lsn"
-			translations.Wal = "wal"
-			queries.OldestLSNs = "SELECT timeline_id, redo_lsn, pg_last_wal_receive_lsn() FROM pg_control_checkpoint()"
-		}
-
-		queries.LagPrimary = fmt.Sprintf(lagPrimaryFmt, translations.Lsn, translations.Wal)
-		queries.LagFollower = fmt.Sprintf(lagFollowerFmt, translations.Lsn, translations.Wal)
-
-		translations.Queries = queries
+	queries := WALQueries{}
+	if pgVersion < translateHorizon {
+		translations.Version = pgVersion
+		translations.Directory = "pg_xlog"
+		translations.Lsn = "location"
+		translations.Wal = "xlog"
+		queries.OldestLSNs = "SELECT timeline_id, redo_location, pg_last_xlog_replay_location() FROM pg_control_checkpoint()"
+	} else {
+		translations.Version = pgVersion
+		translations.Directory = "pg_wal"
+		translations.Lsn = "lsn"
+		translations.Wal = "wal"
+		queries.OldestLSNs = "SELECT timeline_id, redo_lsn, pg_last_wal_receive_lsn() FROM pg_control_checkpoint()"
 	}
+
+	queries.LagPrimary = fmt.Sprintf(lagPrimaryFmt, translations.Lsn, translations.Wal)
+	queries.LagFollower = fmt.Sprintf(lagFollowerFmt, translations.Lsn, translations.Wal)
+
+	translations.Queries = queries
 
 	return translations
 }
