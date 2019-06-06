@@ -484,10 +484,5 @@ func (a *Agent) getPostgresVersion(pgDataPath string) (pgMajor uint64, err error
 		return pgMajor, errors.Wrap(err, "unable to parse version back to integer")
 	}
 
-	log.Debug().
-		Str("from", versionStringRaw).
-		Uint64("to", pgMajor).
-		Msg("parsed pg version")
-
 	return pgMajor, nil
 }
