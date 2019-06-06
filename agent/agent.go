@@ -61,13 +61,13 @@ type Agent struct {
 	fileHandleCache *fhcache.FileHandleCache
 	ioCache         *iocache.IOCache
 	walCache        *walcache.WALCache
-	walTranslations pg.WALTranslations
-	pgVersion       uint32
+	walTranslations *pg.WALTranslations
 }
 
 func New(cfg *config.Config) (a *Agent, err error) {
 	a = &Agent{
 		cfg: &cfg.Agent,
+		walTranslations: &pg.WALTranslations{},
 	}
 
 	a.metrics, err = cgm.NewCirconusMetrics(cfg.Metrics)
@@ -104,7 +104,7 @@ func New(cfg *config.Config) (a *Agent, err error) {
 	}
 
 	{
-		walCache, err := walcache.New(a, a.shutdownCtx, cfg, a.metrics, a.ioCache, a.walTranslations.Directory)
+		walCache, err := walcache.New(a, a.shutdownCtx, cfg, a.metrics, a.ioCache, a.walTranslations)
 		if err != nil {
 			return nil, errors.Wrap(err, "unable to initialize WAL cache")
 		}
@@ -295,11 +295,14 @@ func (a *Agent) Wait() error {
 }
 
 func (a *Agent) setWALTranslations() (error) {
-	if err := a.ensureDBPool(); err != nil {
+	pgDataPath := viper.GetString(config.KeyPGData)
+	pgVersion, err := a.getPostgresVersion(pgDataPath)
+
+	if err != nil {
 		return newVersionError(err, true)
 	}
 
-	a.walTranslations = pg.Translate(a.pgVersion)
+	*a.walTranslations = pg.Translate(pgVersion)
 
 	return nil
 }

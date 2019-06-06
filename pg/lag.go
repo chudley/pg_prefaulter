@@ -31,7 +31,7 @@ const (
 
 // QueryOldestLSNs queries the database to obtain the current TimelineID and the
 // oldest LSNs that it is processing.
-func QueryOldestLSNs(ctx context.Context, pool *pgx.ConnPool, inProcess WALStatusChecker, walTranslations WALTranslations) (TimelineID, []LSN, error) {
+func QueryOldestLSNs(ctx context.Context, pool *pgx.ConnPool, inProcess WALStatusChecker, walTranslations *WALTranslations) (TimelineID, []LSN, error) {
 	const (
 		errTimelineID TimelineID = 0
 	)

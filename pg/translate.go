@@ -18,7 +18,7 @@ import (
 )
 
 type WALTranslations struct {
-	Version    uint32
+	Major    uint64
 	Directory  string
 	Lsn        string
 	Wal        string
@@ -31,9 +31,9 @@ type WALQueries struct {
 	LagFollower  string
 }
 
-func Translate(pgVersion uint32) (WALTranslations) {
+func Translate(pgMajor uint64) (WALTranslations) {
 	var translations WALTranslations
-	var translateHorizon uint32 = 100000 // PostgreSQL version 10
+	var translateHorizon uint64 = 100000 // PostgreSQL version 10
 
 	var lagPrimaryFmt = `SELECT
 	    state,
@@ -58,14 +58,14 @@ func Translate(pgVersion uint32) (WALTranslations) {
 
 	translations = WALTranslations{}
 	queries := WALQueries{}
-	if pgVersion < translateHorizon {
-		translations.Version = pgVersion
+	if pgMajor < translateHorizon {
+		translations.Major = pgMajor
 		translations.Directory = "pg_xlog"
 		translations.Lsn = "location"
 		translations.Wal = "xlog"
 		queries.OldestLSNs = "SELECT timeline_id, redo_location, pg_last_xlog_replay_location() FROM pg_control_checkpoint()"
 	} else {
-		translations.Version = pgVersion
+		translations.Major = pgMajor
 		translations.Directory = "pg_wal"
 		translations.Lsn = "lsn"
 		translations.Wal = "wal"

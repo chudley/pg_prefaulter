@@ -20,6 +20,8 @@ import (
 	"io/ioutil"
 	"math"
 	"strconv"
+	"strings"
+	"path"
 	"time"
 
 	"github.com/alecthomas/units"
@@ -236,20 +238,9 @@ func (a *Agent) initDBPool(cfg *config.Config) (err error) {
 			return errors.Wrap(err, "unable to query DB version")
 		}
 
-		var server_version_num uint32
-		sql_num := `SELECT current_setting('server_version_num')::integer`
-		if err := conn.QueryRowEx(a.shutdownCtx, sql_num, nil).Scan(&server_version_num); err != nil {
-			return errors.Wrap(err, "unable to query DB version number")
-		}
-
-		log.Debug().
-			Uint32("backend-pid", conn.PID()).
-			Str("version", version).
-			Uint32("server-version-num", server_version_num).
-			Msg("established DB connection")
+		log.Debug().Uint32("backend-pid", conn.PID()).Str("version", version).Msg("established DB connection")
 
 		a.metrics.SetTextValue(metrics.DBVersionPG, version)
-		a.pgVersion = server_version_num
 
 		return nil
 	}
@@ -445,4 +436,58 @@ func (a *Agent) startDBStats() {
 				Msg("db-stats")
 		}
 	}
+}
+
+// getPostgresVersion reads PG_VERSION in the provided data path, parses its value, and
+// returns its integer representation.
+//
+// This is intended to act like postgresql's "server_version_num" value, but we can only
+// get that from a query to the database, and the prefaulter needs to have this version
+// in a parseable and comparable format (sometimes before the database has started).
+//
+// Importantly, because PG_VERSION only contains the major portion of the running database,
+// this function will not return the exact version (i.e. the minor) of the database; it will
+// look like the minor version is always 0.
+func (a *Agent) getPostgresVersion(pgDataPath string) (pgMajor uint64, err error) {
+	versionFileAbs := path.Join(pgDataPath, "PG_VERSION")
+	buf, err := ioutil.ReadFile(versionFileAbs)
+	if err != nil {
+		return pgMajor, errors.Wrap(err, "unable to read PG_VERSION")
+	}
+
+	scanner := bufio.NewScanner(bytes.NewReader(buf))
+	var versionStringRaw string
+	for scanner.Scan() {
+		versionStringRaw = scanner.Text()
+		break
+	}
+	if err := scanner.Err(); err != nil {
+		return pgMajor, errors.Wrap(err, "unable to extract PostgreSQL's version string")
+	}
+
+	parts := strings.Split(versionStringRaw, ".")
+	first, err := strconv.ParseUint(parts[0], 10, 32)
+	if err != nil {
+		return pgMajor, errors.Wrap(err, "unable to parse first section of version")
+	}
+
+	var pgVersionString string
+	if first < 10 {
+		second := parts[1];
+		pgVersionString = fmt.Sprintf("%d%s00", (first * 10), second)
+	} else {
+		pgVersionString = fmt.Sprintf("%d0000", first)
+	}
+
+	pgMajor, err = strconv.ParseUint(pgVersionString, 10, 32)
+	if err != nil {
+		return pgMajor, errors.Wrap(err, "unable to parse version back to integer")
+	}
+
+	log.Debug().
+		Str("from", versionStringRaw).
+		Uint64("to", pgMajor).
+		Msg("parsed pg version")
+
+	return pgMajor, nil
 }
